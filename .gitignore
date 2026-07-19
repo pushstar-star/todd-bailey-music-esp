@@ -1,6 +1,11 @@
 .DS_Store
-*.log
-*.pid
-*.zip
+
+# Local runtime data and secrets
+app/data/*.json
+!app/data/.gitkeep
+app/.env
 .env
-node_modules/
+
+# Generated archives, backups, and unrelated working files
+outputs/
+work/

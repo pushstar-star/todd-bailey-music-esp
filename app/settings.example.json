@@ -3,12 +3,12 @@
   "fromName": "Todd Bailey",
   "fromEmail": "info@toddbaileymusic.com",
   "replyTo": "info@toddbaileymusic.com",
-  "physicalAddress": "17 Mahogany Dr., Burlington, NJ 08016",
+  "physicalAddress": "",
   "publicBaseUrl": "https://email.toddbaileymusic.com",
   "provider": "microsoft_graph",
   "sendMode": "test",
   "apiKey": "",
-  "graphTenantId": "e2a88973-b3f6-41ba-9abe-6f4dc9087037",
-  "graphClientId": "ec4826b1-06e0-40ee-9092-8eb4dbda0df1",
+  "graphTenantId": "",
+  "graphClientId": "",
   "graphClientSecret": ""
 }
