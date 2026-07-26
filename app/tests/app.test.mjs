@@ -6,6 +6,7 @@ const contactsPath = new URL("../data/contacts.json", import.meta.url);
 const listsPath = new URL("../data/lists.json", import.meta.url);
 const serverPath = new URL("../server.js", import.meta.url);
 const clientPath = new URL("../public/app.js", import.meta.url);
+const indexPath = new URL("../public/index.html", import.meta.url);
 const settingsPath = new URL("../data/settings.json", import.meta.url);
 
 test("archive audience contains at least 1,860 unique, valid contacts", async () => {
@@ -49,6 +50,18 @@ test("server includes permission, unsubscribe, and sender-address safeguards", a
   assert.match(source, /addTracking/);
   assert.match(source, /trackingEnabled !== true/);
   assert.match(source, /parsed\.origin/);
+  assert.match(source, /ESP_AUTH_USER/);
+  assert.match(source, /ESP_AUTH_PASSWORD/);
+  assert.match(source, /www-authenticate/);
+  assert.match(source, /x-robots-tag/);
+  assert.match(source, /\/robots\.txt/);
+  assert.match(source, /server\.listen\(port, host/);
+});
+
+test("dashboard shell is marked noindex for private hosting", async () => {
+  const source = await fs.readFile(indexPath, "utf8");
+  assert.match(source, /name="robots"/);
+  assert.match(source, /noindex,nofollow,noarchive/);
 });
 
 test("builder supports responsive blocks and personalization", async () => {

@@ -82,6 +82,19 @@ const targetedContacts = (listIds = []) => {
   const selected = new Set(listIds);
   return state.contacts.filter((contact) => contact.status === "subscribed" && (contact.listIds || []).some((id) => selected.has(id)));
 };
+const campaignAudienceCount = (campaign) => {
+  if (campaign.status === "scheduled") return Number(campaign.scheduledCount || 0);
+  if (campaign.status === "queued") return Number(campaign.queuedCount || 0);
+  if (campaign.status === "sent" || campaign.status === "tested") return Number(campaign.sentCount || 0);
+  return targetedContacts(campaign.listIds || []).length;
+};
+const campaignAudienceLabel = (campaign) => {
+  if (campaign.status === "scheduled") return "scheduled recipients";
+  if (campaign.status === "queued") return "queued recipients";
+  if (campaign.status === "sent") return "sent recipients";
+  if (campaign.status === "tested") return "test recipients";
+  return "eligible recipients";
+};
 const listChips = (ids = [], limit = 3) => {
   const found = ids.map(getList).filter(Boolean);
   return `<div class="list-chips">${found.slice(0, limit).map((list) => `<span class="list-chip" style="--chip-color:${esc(list.color)}">${esc(list.name)}</span>`).join("")}${found.length > limit ? `<span class="list-chip">+${found.length - limit}</span>` : ""}</div>`;
@@ -312,7 +325,7 @@ function contactsView() {
 function campaignsView() {
   const cards = state.campaigns.map((campaign) => `<article class="panel campaign-card">
     <div class="campaign-thumb"><div class="email-mini"><div class="mini-hero"></div><div class="mini-line"></div><div class="mini-line short"></div><div class="mini-button"></div></div></div>
-    <div class="campaign-body"><h3>${esc(campaign.name)}</h3><p>${esc(campaign.subject || "No subject line yet")}</p>${listChips(campaign.listIds || [],2)}<div class="campaign-meta" style="margin-top:13px"><span class="badge ${campaign.status === "tested" ? "subscribed" : campaign.status}">${statusLabel(campaign.status)}</span><div class="campaign-actions"><button class="btn small soft" data-duplicate-campaign="${campaign.id}">Duplicate</button><button class="btn small" data-edit-campaign="${campaign.id}">Edit</button></div></div></div>
+    <div class="campaign-body"><h3>${esc(campaign.name)}</h3><p>${esc(campaign.subject || "No subject line yet")}</p>${listChips(campaign.listIds || [],2)}<div class="list-counts" style="margin-top:13px"><div><strong>${formatNumber(campaignAudienceCount(campaign))}</strong><span>${campaignAudienceLabel(campaign)}</span></div></div><div class="campaign-meta" style="margin-top:13px"><span class="badge ${campaign.status === "tested" ? "subscribed" : campaign.status}">${statusLabel(campaign.status)}</span><div class="campaign-actions"><button class="btn small soft" data-duplicate-campaign="${campaign.id}">Duplicate</button><button class="btn small" data-edit-campaign="${campaign.id}">Edit</button></div></div></div>
   </article>`).join("");
   const content = `
     <div class="page-head"><div><div class="eyebrow">Campaigns</div><h1>Make something worth opening</h1><p class="subtitle">Draft, test, and send from one focused workflow.</p></div><button class="btn primary" data-action="new-campaign">${icon("plus")}Create campaign</button></div>

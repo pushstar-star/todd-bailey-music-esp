@@ -21,6 +21,8 @@ This workspace contains a working local browser-based email service platform at 
 - Editable single compliance-footer block with live address and per-recipient unsubscribe link
 - Editable social-profile block for website, Facebook, Instagram, YouTube, TikTok, and Spotify
 - Required sender address and unsubscribe controls
+- Password-protected private dashboard/API when `ESP_AUTH_USER` and `ESP_AUTH_PASSWORD` are set
+- Noindex headers, noarchive policy, and `robots.txt` for private hosting
 - Microsoft Graph HTML delivery using personalized one-to-one messages
 - Microsoft Graph JSON batching of up to 20 send requests per API call
 - Resend, SendGrid, safe test mode, and the original plain-text Outlook automation fallback
