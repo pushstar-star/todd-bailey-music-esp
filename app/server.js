@@ -1,4 +1,5 @@
 import http from "node:http";
+import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -7,6 +8,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.join(__dirname, "public");
 const dataDir = path.join(__dirname, "data");
 const port = Number(process.env.PORT || 4173);
+const host = process.env.HOST || "127.0.0.1";
+const authRealm = "Todd Bailey Music ESP";
 
 const paths = {
   contacts: path.join(dataDir, "contacts.json"),
@@ -67,9 +70,54 @@ async function writeJson(name, value) {
 function json(res, status, body) {
   res.writeHead(status, {
     "content-type": "application/json; charset=utf-8",
-    "cache-control": "no-store"
+    "cache-control": "no-store",
+    "x-robots-tag": "noindex, nofollow, noarchive"
   });
   res.end(JSON.stringify(body));
+}
+
+function noIndexHeaders(extra = {}) {
+  return {
+    "x-robots-tag": "noindex, nofollow, noarchive",
+    ...extra
+  };
+}
+
+function authCredentials() {
+  const user = process.env.ESP_AUTH_USER || process.env.ESP_USER || "";
+  const password = process.env.ESP_AUTH_PASSWORD || process.env.ESP_PASSWORD || "";
+  return user && password ? { user, password } : null;
+}
+
+function safeEqual(a, b) {
+  const left = Buffer.from(String(a));
+  const right = Buffer.from(String(b));
+  return left.length === right.length && crypto.timingSafeEqual(left, right);
+}
+
+function requireAuth(req, res) {
+  const credentials = authCredentials();
+  if (!credentials) return true;
+
+  const header = String(req.headers.authorization || "");
+  const [scheme, encoded] = header.split(" ");
+  if (scheme === "Basic" && encoded) {
+    const decoded = Buffer.from(encoded, "base64").toString("utf8");
+    const separator = decoded.indexOf(":");
+    const user = separator >= 0 ? decoded.slice(0, separator) : "";
+    const password = separator >= 0 ? decoded.slice(separator + 1) : "";
+    if (safeEqual(user, credentials.user) && safeEqual(password, credentials.password)) {
+      return true;
+    }
+  }
+
+  res.writeHead(401, noIndexHeaders({
+    "content-type": "text/plain; charset=utf-8",
+    "cache-control": "no-store",
+    "www-authenticate": `Basic realm="${authRealm}", charset="UTF-8"`
+  }));
+  res.end("Authentication required.");
+  return false;
 }
 
 async function body(req) {
@@ -862,7 +910,8 @@ const server = http.createServer(async (req, res) => {
       await writeJson("events", events);
       res.writeHead(200, {
         "content-type": "image/gif",
-        "cache-control": "no-store, no-cache, must-revalidate, proxy-revalidate"
+        "cache-control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+        "x-robots-tag": "noindex, nofollow, noarchive"
       });
       return res.end(trackingPixel);
     }
@@ -880,7 +929,7 @@ const server = http.createServer(async (req, res) => {
         createdAt: new Date().toISOString()
       });
       await writeJson("events", events);
-      res.writeHead(302, { location: /^https?:\/\//i.test(destination) ? destination : "/" });
+      res.writeHead(302, noIndexHeaders({ location: /^https?:\/\//i.test(destination) ? destination : "/" }));
       return res.end();
     }
 
@@ -902,27 +951,35 @@ const server = http.createServer(async (req, res) => {
         });
         await Promise.all([writeJson("contacts", contacts), writeJson("events", events)]);
       }
-      res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
-      return res.end(`<!doctype html><title>Unsubscribed</title><style>body{font:16px Arial;padding:60px;text-align:center;color:#17202a}main{max-width:520px;margin:auto}</style><main><h1>You’re unsubscribed.</h1><p>${escapeHtml(email)} will no longer receive marketing emails from this list.</p></main>`);
+      res.writeHead(200, noIndexHeaders({ "content-type": "text/html; charset=utf-8" }));
+      return res.end(`<!doctype html><meta name="robots" content="noindex,nofollow,noarchive"><title>Unsubscribed</title><style>body{font:16px Arial;padding:60px;text-align:center;color:#17202a}main{max-width:520px;margin:auto}</style><main><h1>You’re unsubscribed.</h1><p>${escapeHtml(email)} will no longer receive marketing emails from this list.</p></main>`);
+    }
+
+    if (url.pathname === "/robots.txt") {
+      res.writeHead(200, noIndexHeaders({ "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" }));
+      return res.end("User-agent: *\nDisallow: /\n");
     }
 
     if (url.pathname.startsWith("/api/")) {
+      if (!requireAuth(req, res)) return;
       const handled = await api(req, res, url);
       if (handled !== false) return;
       return json(res, 404, { error: "Not found." });
     }
 
+    if (!requireAuth(req, res)) return;
+
     const requested = url.pathname === "/" ? "index.html" : url.pathname.slice(1);
     const filePath = path.resolve(publicDir, requested);
     if (!filePath.startsWith(publicDir)) {
-      res.writeHead(403);
+      res.writeHead(403, noIndexHeaders());
       return res.end("Forbidden");
     }
     const content = await fs.readFile(filePath);
-    res.writeHead(200, {
+    res.writeHead(200, noIndexHeaders({
       "content-type": mime[path.extname(filePath)] || "application/octet-stream",
       "cache-control": "no-cache"
-    });
+    }));
     res.end(content);
   } catch (error) {
     if (error.code === "ENOENT") {
@@ -934,8 +991,11 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(port, "127.0.0.1", () => {
-  console.log(`Todd Bailey Music ESP is running at http://127.0.0.1:${port}`);
+server.listen(port, host, () => {
+  console.log(`Todd Bailey Music ESP is running at http://${host}:${port}`);
+  if (!authCredentials()) {
+    console.warn("Dashboard password protection is disabled. Set ESP_AUTH_USER and ESP_AUTH_PASSWORD before exposing this server.");
+  }
   processDueCampaigns().catch((error) => console.error("Scheduled campaign check failed:", error));
   setInterval(() => {
     processDueCampaigns().catch((error) => console.error("Scheduled campaign check failed:", error));
