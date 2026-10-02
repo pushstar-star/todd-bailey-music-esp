@@ -1,0 +1,15 @@
+{
+  "name": "todd-bailey-music-esp",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "app/server.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "node --check app/server.js",
+    "start": "node --input-type=module -e \"process.env.HOST ||= '0.0.0.0'; await import('./app/server.js');\"",
+    "test": "npm --prefix app test"
+  }
+}
